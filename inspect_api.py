@@ -63,14 +63,30 @@ except Exception as e:
 
 print("\n[2/2] Fetching currency exchange data...")
 try:
-    data = api.fetch_markets(timestamp_id=args.timestamp)
+    # Fetch raw data first
+    raw_data = api.fetch_markets(timestamp_id=args.timestamp)
+    # Then apply league filter
+    markets = api.get_current_markets(timestamp_id=args.timestamp)
     print(f"✓ Successfully fetched data")
+    if LEAGUE:
+        print(f"✓ Filtered to league: {LEAGUE}")
+        print(f"  Total markets in API: {len(raw_data.get('markets', []))}")
+        print(f"  Markets after filter: {len(markets)}")
 except Exception as e:
     print(f"✗ Failed to fetch data: {e}")
     sys.exit(1)
 
+# Reconstruct data dict with filtered markets
+data = {
+    'next_change_id': raw_data.get('next_change_id'),
+    'markets': markets
+}
+
 print("\n" + "=" * 80)
-print("RAW API RESPONSE")
+if LEAGUE:
+    print(f"FILTERED DATA (League: {LEAGUE})")
+else:
+    print("RAW API RESPONSE (All Leagues)")
 print("=" * 80)
 print(json.dumps(data, indent=2))
 
