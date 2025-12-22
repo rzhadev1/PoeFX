@@ -14,12 +14,21 @@ from dotenv import load_dotenv
 
 sys.path.append('src')
 
-from pot.api_client import fetch_and_convert
+from pot.api_client import fetch_and_convert, PoECurrencyAPI
 from pot.monad import Solver
 from pot.optimize import order_book_to_digraph, optimal_conversion
 
 # Load credentials from .env
 load_dotenv()
+
+
+def progress(message, percent=None):
+    """Print progress message with optional percentage."""
+    if percent is not None:
+        sys.stdout.write(f'\r{message} {percent}%')
+        sys.stdout.flush()
+    else:
+        print(message)
 
 
 def main():
@@ -82,15 +91,13 @@ def main():
     realm = args.realm or os.getenv('POE_REALM', 'poe2')
     league = args.league or os.getenv('POE_LEAGUE', None)
 
-    print("=" * 70)
-    print("Path of Trading - Live Market Optimizer")
-    print("=" * 70)
+    # Use latest completed hour if timestamp not provided
+    timestamp = args.timestamp
+    if timestamp is None:
+        timestamp = PoECurrencyAPI.get_latest_completed_hour_timestamp()
 
-    # Step 1: Fetch market data
-    league_msg = f"league: {league}" if league else "all leagues"
-    print(f"\n📊 Fetching market data for {league_msg}")
-    print(f"   Realm: {realm}")
-    print(f"   Strategy: {args.strategy}")
+    # Step 1: Fetch market data (with progress indicators)
+    progress("⏳ Fetching market data from API...", 10)
 
     try:
         df = fetch_and_convert(
@@ -101,10 +108,11 @@ def main():
             realm=realm,
             gold_cost=args.goldcost,
             order_strategy=args.strategy,
-            timestamp_id=args.timestamp
+            timestamp_id=timestamp
         )
 
-        print(f"\n✅ Successfully created order book with {len(df)} orders")
+        progress("✓ Market data fetched", 30)
+        print()  # New line after progress
 
         if args.inspect:
             print("\n" + "=" * 70)
@@ -120,29 +128,27 @@ def main():
                 print(f"  - {curr}")
 
     except Exception as e:
-        print(f"\n❌ Error fetching market data: {e}")
+        print(f"\n\n❌ Error fetching market data: {e}")
         sys.exit(1)
 
     # Step 2: Run optimization (unless --fetch-only)
     if args.fetch_only:
-        print(f"\n💾 Market data saved to: {args.save_csv}")
+        print(f"\n💾 Order book saved to: {args.save_csv}")
         print("   (Skipping optimization due to --fetch-only flag)")
         return
 
-    print("\n" + "=" * 70)
-    print("RUNNING OPTIMIZATION")
-    print("=" * 70)
-    print(f"Converting: {args.havecurrencyqty} {args.havecurrency} → {args.wantcurrency}")
-    print(f"Timesteps: {args.timesteps}, Window: {args.window}, Gold: {args.startgold:,}")
-
+    # Convert to graph
+    progress("⏳ Building market graph...", 40)
     try:
-        # Convert to graph
         market_graph = order_book_to_digraph(df)
+        progress("✓ Graph built", 50)
+        print()  # New line
 
         # Create portfolio
         from_portfolio = {args.havecurrency: args.havecurrencyqty}
 
         # Run optimization
+        progress("⏳ Running MILP optimization...", 60)
         solution = (
             optimal_conversion(
                 market_graph,
@@ -154,6 +160,9 @@ def main():
             ) >> Solver(args.solver)
         )
 
+        progress("✓ Optimization complete", 90)
+        print()  # New line
+
         if solution is None or solution.status is not None:
             print(f"\n❌ Optimization failed: {solution.status if solution else 'Unknown error'}")
             sys.exit(1)
@@ -161,6 +170,7 @@ def main():
         # Get results
         optimal_value, trades = solution()
 
+        # Display results
         print("\n" + "=" * 70)
         print("RESULTS")
         print("=" * 70)
@@ -176,9 +186,14 @@ def main():
             print("\n⚠️  No trades recommended (direct hold may be optimal)")
 
         print("\n" + "=" * 70)
+        print(f"💾 Order book saved to: {args.save_csv}")
+        print("=" * 70 + "\n")
+
+        progress("✓ Complete", 100)
+        print()  # Final new line
 
     except Exception as e:
-        print(f"\n❌ Optimization error: {e}")
+        print(f"\n\n❌ Optimization error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

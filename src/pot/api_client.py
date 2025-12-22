@@ -8,7 +8,7 @@ into the format expected by the optimization model.
 import requests
 import pandas as pd
 from typing import Optional, Dict, List, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 
 
@@ -34,6 +34,29 @@ class PoECurrencyAPI:
         self.league = league
         self.access_token = None
         self.token_expires_at = 0
+
+    @staticmethod
+    def get_latest_completed_hour_timestamp() -> int:
+        """
+        Calculate the Unix timestamp for the most recent completed hour.
+
+        The API only provides historical data for completed hours.
+        This function:
+        1. Gets current UTC time
+        2. Truncates to start of current hour (minutes/seconds = 0)
+        3. Subtracts 1 hour to get the previous completed hour
+        4. Returns as Unix integer timestamp
+
+        :return: Unix timestamp (integer) for the latest completed hour
+        """
+        now_utc = datetime.now(timezone.utc)
+        # Truncate to start of current hour
+        current_hour = now_utc.replace(minute=0, second=0, microsecond=0)
+        # Subtract 1 hour to get the previous completed hour
+        from datetime import timedelta
+        latest_completed_hour = current_hour - timedelta(hours=1)
+        # Convert to Unix timestamp
+        return int(latest_completed_hour.timestamp())
 
     def _get_access_token(self) -> str:
         """
