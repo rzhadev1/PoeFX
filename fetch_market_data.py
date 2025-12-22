@@ -33,6 +33,8 @@ def main():
     parser.add_argument('--realm', '-r', type=str, default=None,
                        choices=['pc', 'xbox', 'sony', 'poe2'],
                        help='Game realm (default: from .env or poe2)')
+    parser.add_argument('--timestamp', '-t', type=int, default=None,
+                       help='Unix timestamp for historical data (default: latest available)')
 
     # Order book generation
     parser.add_argument('--strategy', '-st', type=str, default='range',
@@ -98,7 +100,8 @@ def main():
             output_file=args.save_csv,
             realm=realm,
             gold_cost=args.goldcost,
-            order_strategy=args.strategy
+            order_strategy=args.strategy,
+            timestamp_id=args.timestamp
         )
 
         print(f"\n✅ Successfully created order book with {len(df)} orders")

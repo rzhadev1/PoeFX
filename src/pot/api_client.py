@@ -109,13 +109,14 @@ class PoECurrencyAPI:
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to fetch market data: {e}")
 
-    def get_current_markets(self) -> List[Dict]:
+    def get_current_markets(self, timestamp_id: Optional[int] = None) -> List[Dict]:
         """
-        Fetch the most recent market data and filter by league if specified.
+        Fetch market data and filter by league if specified.
 
+        :param timestamp_id: Unix timestamp for historical data
         :return: List of market dictionaries
         """
-        data = self.fetch_markets()
+        data = self.fetch_markets(timestamp_id=timestamp_id)
         markets = data.get("markets", [])
 
         # Filter by league if specified
@@ -338,7 +339,7 @@ def fetch_and_convert(client_id: str,
     """
     # Fetch market data
     api = PoECurrencyAPI(client_id, client_secret, realm=realm, league=league)
-    markets = api.get_current_markets()
+    markets = api.get_current_markets(timestamp_id=timestamp_id)
 
     if not markets:
         league_msg = f"league '{league}'" if league else "any league"
