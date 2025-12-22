@@ -173,6 +173,10 @@ class OrderBookConverter:
         lowest_ratio = market.get("lowest_ratio", {})
         highest_ratio = market.get("highest_ratio", {})
 
+        # Skip markets with no trading activity (zero ratios)
+        if all(v == 0 for v in lowest_ratio.values()) and all(v == 0 for v in highest_ratio.values()):
+            return []
+
         orders = []
 
         if self.order_strategy == "range":
@@ -184,22 +188,29 @@ class OrderBookConverter:
                 if have_curr not in lowest_ratio or have_curr not in highest_ratio:
                     continue
 
+                # Skip if this currency has zero ratio (no trading)
+                low_r = float(lowest_ratio[have_curr])
+                high_r = float(highest_ratio[have_curr])
+                if low_r == 0 and high_r == 0:
+                    continue
+
                 # Order at lowest ratio (best price for buyer)
-                if have_curr in lowest_ratio:
+                if low_r > 0:
                     orders.append({
                         "have": have_curr,
                         "want": want_curr,
-                        "ratio": float(lowest_ratio[have_curr]),
+                        "ratio": low_r,
                         "stock": int(lowest_stock.get(have_curr, 1)),
                         "gold_cost": self.gold_cost
                     })
 
                 # Order at highest ratio (worst price for buyer, but available)
-                if have_curr in highest_ratio:
+                # Only add if different from lowest
+                if high_r > 0 and high_r != low_r:
                     orders.append({
                         "have": have_curr,
                         "want": want_curr,
-                        "ratio": float(highest_ratio[have_curr]),
+                        "ratio": high_r,
                         "stock": int(highest_stock.get(have_curr, 1)),
                         "gold_cost": self.gold_cost
                     })
