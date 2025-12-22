@@ -53,8 +53,12 @@ class PoECurrencyAPI:
             "scope": "service:cxapi"
         }
 
+        headers = {
+            "User-Agent": f"OAuth {self.client_id}/1.0.0 (contact: tedzbowles@gmail.com)"
+        }
+
         try:
-            response = requests.post(self.OAUTH_URL, data=data)
+            response = requests.post(self.OAUTH_URL, data=data, headers=headers)
             response.raise_for_status()
             token_data = response.json()
 
