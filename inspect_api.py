@@ -6,10 +6,18 @@ Run this first to see what data is actually returned by the API.
 import sys
 import os
 import json
+import argparse
+from datetime import datetime
 from dotenv import load_dotenv
 
 sys.path.append('src')
 from pot.api_client import PoECurrencyAPI
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Inspect PoE Currency Exchange API data')
+parser.add_argument('--timestamp', '-t', type=int, default=None,
+                   help='Unix timestamp to fetch data for (default: first hour)')
+args = parser.parse_args()
 
 # Load credentials from .env file
 load_dotenv()
@@ -30,6 +38,11 @@ print("=" * 80)
 print(f"\nRealm: {REALM}")
 print(f"League filter: {LEAGUE if LEAGUE else '(all leagues)'}")
 print(f"Client ID: {CLIENT_ID}")
+if args.timestamp:
+    dt = datetime.fromtimestamp(args.timestamp)
+    print(f"Timestamp: {args.timestamp} ({dt.strftime('%Y-%m-%d %H:%M:%S UTC')})")
+else:
+    print(f"Timestamp: None (will fetch first hour of history)")
 print("\n" + "=" * 80)
 
 # Create API client
@@ -50,7 +63,7 @@ except Exception as e:
 
 print("\n[2/2] Fetching currency exchange data...")
 try:
-    data = api.fetch_markets()
+    data = api.fetch_markets(timestamp_id=args.timestamp)
     print(f"✓ Successfully fetched data")
 except Exception as e:
     print(f"✗ Failed to fetch data: {e}")
